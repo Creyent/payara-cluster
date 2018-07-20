@@ -1,0 +1,6 @@
+# Docker
+.env
+
+# Volumes data
+/das-data/
+/nodos/nodo*

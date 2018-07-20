@@ -1,0 +1,72 @@
+version: '2'
+
+services:
+  apache:
+    build:
+      context: ./apache-php7
+      dockerfile: apache.dockerfile
+      args:
+        TIMEZONE: ${TIMEZONE}
+    image: ${CONTAINER_PREFIX}.apache
+    container_name: ${CONTAINER_PREFIX}.apache
+    volumes:
+      #:ro option makes the mount read-only.
+      - ${DOCKER_FILES}/apache-php7/index.php:/var/www/html/index.php
+      - ${DOCKER_FILES}/apache-php7/php/php.ini:/usr/local/etc/php/php.ini
+      - ${DOCKER_FILES}/apache-php7/apache2/sites-enabled:/etc/apache2/sites-enabled:ro
+    ports:
+      - ${APACHE_PORT}:80
+    restart: always
+    networks:
+      - cluster
+
+  payara:
+    build:
+      context: ./payara-server-full
+      dockerfile: payara.dockerfile
+    image: ${CONTAINER_PREFIX}.payara
+    container_name: ${CONTAINER_PREFIX}.payara
+    depends_on:
+      - apache
+    volumes:
+      - ${DOCKER_FILES}/das-data:/opt/payara41
+    ports:
+      - ${PAYARA_DAS_PORT}:4848
+    # - ${PAYARA_N1_HTTP_PORT}:8080
+    # - ${PAYARA_N1_HTTPS_PORT}:8181
+    entrypoint:
+      - /opt/payara41/bin/asadmin
+      - start-domain
+      - -v
+    networks:
+      - cluster
+
+  nodo1:
+    build:
+      context: ./nodos
+      dockerfile: nodo.dockerfile
+    image: ${CONTAINER_PREFIX}.nodo
+    container_name: ${CONTAINER_PREFIX}.nodo1
+    volumes:
+      - ${DOCKER_FILES}/nodos/nodo1:/opt/payara41
+    links:
+      - payara
+    ports:
+     - ${PAYARA_SSH_NODE1}:22
+    networks:
+      - cluster
+
+  nodo2:
+    image: ${CONTAINER_PREFIX}.nodo
+    container_name: ${CONTAINER_PREFIX}.nodo2
+    volumes:
+      - ${DOCKER_FILES}/nodos/nodo2:/opt/payara41
+    links:
+      - payara
+    ports:
+     - ${PAYARA_SSH_NODE2}:22
+    networks:
+      - cluster
+
+networks:
+  cluster:
